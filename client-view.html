@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FitCRM — Client Details</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <h1 class="brand">FitCRM</h1>
+      <nav aria-label="Primary">
+        <ul class="nav">
+          <li><a class="nav-link" href="index.html">New Client</a></li>
+          <li><a class="nav-link" href="clients.html">Client List</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Client Profile Card -->
+    <section class="card client-profile" aria-labelledby="client-name">
+      <header class="profile-header">
+        <div class="profile-avatar" id="client-avatar">
+          <!-- Avatar initial will be inserted here -->
+        </div>
+        <div class="profile-info">
+          <h2 id="client-name" class="profile-name">Loading...</h2>
+          <p class="profile-goal">
+            <span class="badge" id="client-goal-badge">—</span>
+          </p>
+        </div>
+        <div class="profile-actions">
+          <a href="#" id="edit-client-btn" class="btn btn-ghost">Edit</a>
+          <button id="delete-client-btn" class="btn btn-danger-ghost">Delete</button>
+        </div>
+      </header>
+
+      <div class="profile-details">
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="detail-label">Email</span>
+            <a href="#" id="client-email" class="detail-value">—</a>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Phone</span>
+            <a href="#" id="client-phone" class="detail-value">—</a>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Age</span>
+            <span id="client-age" class="detail-value">—</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Gender</span>
+            <span id="client-gender" class="detail-value">—</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Membership Start</span>
+            <span id="client-start-date" class="detail-value">—</span>
+          </div>
+          <div class="detail-item" id="goal-text-container" style="display: none;">
+            <span class="detail-label">Goal Details</span>
+            <span id="client-goal-text" class="detail-value">—</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Training History Section -->
+    <section class="card" aria-labelledby="training-history-title">
+      <header class="section-header">
+        <h2 id="training-history-title">Training History</h2>
+        <button id="add-exercise-btn" class="btn btn-primary btn-sm">+ Add Exercise</button>
+      </header>
+
+      <div id="exercise-history" class="exercise-history">
+        <!-- Exercise entries will be inserted here -->
+        <div class="empty-state" id="no-exercises" style="display: none;">
+          <div class="empty-state-icon">🏋️</div>
+          <h3>No Training History Yet</h3>
+          <p>Add the first exercise for this client.</p>
+        </div>
+      </div>
+
+      <!-- Add Exercise Form (hidden by default) -->
+      <div id="exercise-form-container" class="exercise-form-container" style="display: none;">
+        <form id="exercise-form" class="exercise-form">
+          <div class="form-field">
+            <label for="exercise-date">Exercise Date</label>
+            <input type="date" id="exercise-date" name="date" required />
+          </div>
+          <div class="form-field">
+            <label for="exercise-title">Exercise Title</label>
+            <input type="text" id="exercise-title" name="title" placeholder="e.g. Upper Body Workout" required />
+          </div>
+          <div class="form-field">
+            <label for="exercise-tags">Exercise Tags (comma-separated)</label>
+            <input type="text" id="exercise-tags" name="tags" placeholder="e.g. Squats, Bench Press, Rows" />
+          </div>
+          <div class="form-field">
+            <label for="exercise-notes">Exercise Notes</label>
+            <textarea id="exercise-notes" name="notes" rows="3" placeholder="Describe the exercise..."></textarea>
+          </div>
+          <div class="exercise-form-actions">
+            <button type="submit" class="btn btn-primary btn-sm">Save Exercise</button>
+            <button type="button" id="cancel-exercise-btn" class="btn btn-secondary btn-sm">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Suggested Exercises Section (Wger API) -->
+    <section class="card" aria-labelledby="exercises-title">
+      <header class="section-header">
+        <h2 id="exercises-title">Suggested Exercises for Next Session</h2>
+        <p class="section-subtitle">5 exercises from <a href="https://wger.de/en/software/api" target="_blank" class="text-link">Wger API</a></p>
+      </header>
+
+      <div id="exercises-container" class="exercises-grid">
+        <!-- Loading state -->
+        <div id="exercises-loading" class="loading-state">
+          <div class="spinner"></div>
+          <p>Fetching 5 exercises from Wger API...</p>
+        </div>
+        
+        <!-- Error state -->
+        <div id="exercises-error" class="error-state" style="display: none;">
+          <p>⚠️ Unable to load suggested exercises right now.</p>
+        </div>
+        
+        <!-- 5 Suggested exercises from API will be inserted here -->
+        <div id="suggested-exercises-list"></div>
+      </div>
+    </section>
+
+    <!-- Back to List -->
+    <div class="back-link">
+      <a href="clients.html" class="text-link">← Back to Client List</a>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p><a href="clients.html" class="text-link">View All Clients</a></p>
+    </div>
+  </footer>
+
+  <!-- Include JavaScript -->
+  <script src="js/app.js"></script>
+  <script>
+    /**
+     * Client View Page Handler
+     * Displays client details, training history, and suggested exercises
+     */
+    (function() {
+      'use strict';
+      
+      // Get client ID from URL
+      const clientId = getUrlParam('id');
+      
+      if (!clientId) {
+        showToast('No client specified', 'error');
+        window.location.href = 'clients.html';
+        return;
+      }
+      
+      // Get client data
+      const client = getClientById(clientId);
+      
+      if (!client) {
+        showToast('Client not found', 'error');
+        window.location.href = 'clients.html';
+        return;
+      }
+      
+      // DOM Elements
+      const clientName = document.getElementById('client-name');
+      const clientAvatar = document.getElementById('client-avatar');
+      const clientGoalBadge = document.getElementById('client-goal-badge');
+      const clientEmail = document.getElementById('client-email');
+      const clientPhone = document.getElementById('client-phone');
+      const clientAge = document.getElementById('client-age');
+      const clientGender = document.getElementById('client-gender');
+      const clientStartDate = document.getElementById('client-start-date');
+      const clientGoalText = document.getElementById('client-goal-text');
+      const goalTextContainer = document.getElementById('goal-text-container');
+      const editBtn = document.getElementById('edit-client-btn');
+      const deleteBtn = document.getElementById('delete-client-btn');
+      const exerciseHistory = document.getElementById('exercise-history');
+      const noExercises = document.getElementById('no-exercises');
+      const addExerciseBtn = document.getElementById('add-exercise-btn');
+      const exerciseFormContainer = document.getElementById('exercise-form-container');
+      const exerciseForm = document.getElementById('exercise-form');
+      const cancelExerciseBtn = document.getElementById('cancel-exercise-btn');
+      const exercisesContainer = document.getElementById('exercises-container');
+      const exercisesLoading = document.getElementById('exercises-loading');
+      const exercisesError = document.getElementById('exercises-error');
+      
+      // Update page title
+      document.title = `FitCRM — ${client.fullName}`;
+      
+      // Populate client details
+      populateClientDetails();
+      renderExerciseHistory();
+      loadSuggestedExercises();
+      
+      /**
+       * Populate client details in the UI
+       */
+      function populateClientDetails() {
+        // Name and avatar
+        clientName.textContent = client.fullName;
+        clientAvatar.textContent = getInitials(client.fullName);
+        clientAvatar.style.backgroundColor = getAvatarColor(client.fullName);
+        
+        // Goal badge
+        clientGoalBadge.textContent = client.goal;
+        clientGoalBadge.className = `badge badge-${getBadgeClass(client.goal)}`;
+        
+        // Contact info
+        clientEmail.textContent = client.email;
+        clientEmail.href = `mailto:${client.email}`;
+        
+        clientPhone.textContent = client.phone;
+        clientPhone.href = `tel:${client.phone.replace(/\s/g, '')}`;
+        
+        // Other details
+        clientAge.textContent = `${client.age} years`;
+        clientGender.textContent = client.gender;
+        clientStartDate.textContent = formatDate(client.startDate);
+        
+        // Goal text (if "Other")
+        if (client.goal === 'Other' && client.goalText) {
+          goalTextContainer.style.display = 'block';
+          clientGoalText.textContent = client.goalText;
+        }
+        
+        // Edit button link
+        editBtn.href = `index.html?edit=${client.id}`;
+      }
+      
+      /**
+       * Get initials from name
+       * @param {string} name - Full name
+       * @returns {string} Initials (max 2 characters)
+       */
+      function getInitials(name) {
+        return name
+          .split(' ')
+          .map(word => word[0])
+          .join('')
+          .toUpperCase()
+          .substring(0, 2);
+      }
+      
+      /**
+       * Generate consistent avatar color based on name
+       * @param {string} name - Name to hash
+       * @returns {string} HSL color string
+       */
+      function getAvatarColor(name) {
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) {
+          hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const hue = hash % 360;
+        return `hsl(${hue}, 65%, 55%)`;
+      }
+      
+      /**
+       * Get badge class based on fitness goal
+       * @param {string} goal - Fitness goal
+       * @returns {string} Badge class suffix
+       */
+      function getBadgeClass(goal) {
+        const classes = {
+          'Weight Loss': 'loss',
+          'Muscle Gain': 'gain',
+          'General Fitness': 'fitness',
+          'Other': 'other'
+        };
+        return classes[goal] || 'default';
+      }
+      
+      /**
+       * Render exercise history
+       */
+      function renderExerciseHistory() {
+        const history = client.exerciseHistory || [];
+        
+        if (history.length === 0) {
+          noExercises.style.display = 'flex';
+          return;
+        }
+        
+        noExercises.style.display = 'none';
+        
+        // Sort by date (newest first)
+        const sortedHistory = [...history].sort((a, b) => 
+          new Date(b.date) - new Date(a.date)
+        );
+        
+        const historyHtml = sortedHistory.map(entry => `
+          <div class="exercise-entry">
+            <div class="exercise-date">
+              <span class="date-day">${new Date(entry.date).getDate()}</span>
+              <span class="date-month">${new Date(entry.date).toLocaleString('en', { month: 'short' })}</span>
+              <span class="date-year">${new Date(entry.date).getFullYear()}</span>
+            </div>
+            <div class="exercise-content">
+              <h4 class="exercise-title">${escapeHtml(entry.title) || 'Exercise'}</h4>
+              <p class="exercise-notes">${escapeHtml(entry.notes) || 'No notes'}</p>
+              ${entry.tags && entry.tags.length > 0 ? `
+                <div class="exercise-tags">
+                  ${entry.tags.map(tag => `<span class="exercise-tag">${escapeHtml(tag)}</span>`).join('')}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `).join('');
+        
+        // Insert before the no-exercises element
+        const existingEntries = exerciseHistory.querySelectorAll('.exercise-entry');
+        existingEntries.forEach(el => el.remove());
+        exerciseHistory.insertAdjacentHTML('afterbegin', historyHtml);
+      }
+      
+      /**
+       * Escape HTML to prevent XSS
+       * @param {string} str - String to escape
+       * @returns {string} Escaped string
+       */
+      function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+      
+      /**
+       * Load and display 5 suggested exercises from Wger REST API
+       * As per assignment: "Retrieve the suggested exercises for the next session 
+       * by grabbing 5 exercises from an online workout manager (Wger)"
+       * 
+       * - Fetches fresh data every time (not stored in localStorage)
+       * - Shows friendly error message if API fails
+       */
+      async function loadSuggestedExercises() {
+        const suggestedList = document.getElementById('suggested-exercises-list');
+        
+        // Show loading state
+        exercisesLoading.style.display = 'flex';
+        exercisesError.style.display = 'none';
+        suggestedList.innerHTML = '';
+        
+        // Fetch 5 exercises from Wger API (fresh call, not cached)
+        const result = await fetchSuggestedExercises(client.goal, 5);
+        
+        // Hide loading state
+        exercisesLoading.style.display = 'none';
+        
+        // Render the 5 exercises (either from API or fallback)
+        const exercisesHtml = result.exercises.map((exercise, index) => `
+          <div class="exercise-card">
+            <span class="exercise-number">${index + 1}</span>
+            <div class="exercise-info">
+              <h3 class="exercise-name">${escapeHtml(exercise.name)}</h3>
+              <p class="exercise-description">${escapeHtml(exercise.description)}</p>
+            </div>
+          </div>
+        `).join('');
+        
+        suggestedList.innerHTML = exercisesHtml;
+      }
+      
+      /**
+       * Handle delete button click
+       */
+      deleteBtn.addEventListener('click', function() {
+        showConfirmDialog(
+          `Are you sure you want to delete "${client.fullName}"? This action cannot be undone.`,
+          () => {
+            const deleted = deleteClient(client.id);
+            if (deleted) {
+              showToast('Client deleted successfully', 'success');
+              setTimeout(() => {
+                window.location.href = 'clients.html';
+              }, 1000);
+            } else {
+              showToast('Failed to delete client', 'error');
+            }
+          }
+        );
+      });
+      
+      /**
+       * Show add exercise form
+       */
+      addExerciseBtn.addEventListener('click', function() {
+        exerciseFormContainer.style.display = 'block';
+        document.getElementById('exercise-date').valueAsDate = new Date();
+        addExerciseBtn.style.display = 'none';
+      });
+      
+      /**
+       * Cancel add exercise
+       */
+      cancelExerciseBtn.addEventListener('click', function() {
+        exerciseFormContainer.style.display = 'none';
+        exerciseForm.reset();
+        addExerciseBtn.style.display = 'inline-block';
+      });
+      
+      /**
+       * Handle exercise form submission
+       */
+      exerciseForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(exerciseForm);
+        const exerciseData = {
+          date: formData.get('date'),
+          title: formData.get('title')?.trim() || '',
+          notes: formData.get('notes')?.trim() || '',
+          tags: formData.get('tags')
+            ? formData.get('tags').split(',').map(tag => tag.trim()).filter(tag => tag)
+            : []
+        };
+        
+        // Add exercise to client history
+        const updated = addExerciseEntry(client.id, exerciseData);
+        
+        if (updated) {
+          // Refresh client data
+          Object.assign(client, updated);
+          
+          showToast('Exercise added!', 'success');
+          exerciseFormContainer.style.display = 'none';
+          exerciseForm.reset();
+          addExerciseBtn.style.display = 'inline-block';
+          
+          // Re-render exercise history
+          renderExerciseHistory();
+        } else {
+          showToast('Failed to add exercise', 'error');
+        }
+      });
+      
+    })();
+  </script>
+</body>
+</html>
+

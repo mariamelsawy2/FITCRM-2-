@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FitCRM — New Client</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <h1 class="brand">FitCRM</h1>
+      <nav aria-label="Primary">
+        <ul class="nav">
+          <li><a class="nav-link active" href="index.html">New Client</a></li>
+          <li><a class="nav-link" href="clients.html">Client List</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card form-card" aria-labelledby="new-client-title">
+      <header class="section-header">
+        <h2 id="new-client-title">New Client Form</h2>
+        <p class="section-subtitle" id="form-mode-text">Fill in the details below to add a new client.</p>
+      </header>
+
+      <form id="client-form" class="grid-form" novalidate>
+        <!-- Hidden field for edit mode -->
+        <input type="hidden" id="editClientId" name="editClientId" value="" />
+        
+        <fieldset class="grid">
+          <legend class="sr-only">Client Details</legend>
+
+          <div class="form-field">
+            <label for="fullName">Full Name <span aria-hidden="true" class="req">*</span></label>
+            <input id="fullName" name="fullName" type="text" required autocomplete="name" placeholder="e.g. John Doe" />
+          </div>
+
+          <div class="form-field">
+            <label for="age">Age <span aria-hidden="true" class="req">*</span></label>
+            <input id="age" name="age" type="number" inputmode="numeric" min="1" max="120" required placeholder="e.g. 25" />
+          </div>
+
+          <div class="form-field">
+            <label for="gender">Gender <span aria-hidden="true" class="req">*</span></label>
+            <select id="gender" name="gender" required>
+              <option value="" disabled selected>Select…</option>
+              <option value="Female">Female</option>
+              <option value="Male">Male</option>
+              <option value="Prefer not to say">Prefer not to say</option>
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="email">Email <span aria-hidden="true" class="req">*</span></label>
+            <input id="email" name="email" type="email" required autocomplete="email" placeholder="e.g. john@example.com" />
+          </div>
+
+          <div class="form-field">
+            <label for="phone">Phone <span aria-hidden="true" class="req">*</span></label>
+            <input id="phone" name="phone" type="tel" required autocomplete="tel" placeholder="e.g. +20 10 1234 5678" />
+          </div>
+
+          <div class="form-field">
+            <label for="goal">Fitness Goal <span aria-hidden="true" class="req">*</span></label>
+            <select id="goal" name="goal" required>
+              <option value="" disabled selected>Select…</option>
+              <option value="Weight Loss">Weight Loss</option>
+              <option value="Muscle Gain">Muscle Gain</option>
+              <option value="General Fitness">General Fitness</option>
+              <option value="Other">Other (enter below)</option>
+            </select>
+          </div>
+
+          <div class="form-field form-field--full">
+            <label for="goalText">If "Other", describe goal</label>
+            <input id="goalText" name="goalText" type="text" placeholder="Describe your custom fitness goal..." />
+          </div>
+
+          <div class="form-field">
+            <label for="startDate">Membership Start Date <span aria-hidden="true" class="req">*</span></label>
+            <input id="startDate" name="startDate" type="date" required />
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <button type="submit" class="btn btn-primary" id="submit-btn">Add Client</button>
+          <button type="button" class="btn btn-secondary" id="cancel-btn" style="display: none;">Cancel Edit</button>
+          <button type="reset" class="btn btn-ghost">Clear Form</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p><a href="clients.html" class="text-link">View Client List</a></p>
+    </div>
+  </footer>
+
+  <!-- Include JavaScript -->
+  <script src="js/app.js"></script>
+  <script>
+    /**
+     * New Client Form Handler
+     * Manages form submission, validation, and edit mode
+     */
+    (function() {
+      'use strict';
+      
+      const form = document.getElementById('client-form');
+      const submitBtn = document.getElementById('submit-btn');
+      const cancelBtn = document.getElementById('cancel-btn');
+      const formModeText = document.getElementById('form-mode-text');
+      const editClientIdField = document.getElementById('editClientId');
+      
+      // Check if we're in edit mode (client ID in URL)
+      const editId = getUrlParam('edit');
+      
+      if (editId) {
+        // Load client data for editing
+        loadClientForEdit(editId);
+      }
+      
+      /**
+       * Load client data into form for editing
+       * @param {string} clientId - Client ID to edit
+       */
+      function loadClientForEdit(clientId) {
+        const client = getClientById(clientId);
+        
+        if (!client) {
+          showToast('Client not found', 'error');
+          window.location.href = 'clients.html';
+          return;
+        }
+        
+        // Update UI for edit mode
+        document.getElementById('new-client-title').textContent = 'Edit Client';
+        formModeText.textContent = `Editing: ${client.fullName}`;
+        submitBtn.textContent = 'Update Client';
+        cancelBtn.style.display = 'inline-block';
+        
+        // Populate form fields
+        editClientIdField.value = client.id;
+        form.fullName.value = client.fullName;
+        form.age.value = client.age;
+        form.gender.value = client.gender;
+        form.email.value = client.email;
+        form.phone.value = client.phone;
+        form.goal.value = client.goal;
+        form.goalText.value = client.goalText || '';
+        form.startDate.value = client.startDate;
+      }
+      
+      /**
+       * Handle form submission
+       */
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Validate form
+        const validation = validateClientForm(form);
+        
+        if (!validation.isValid) {
+          displayFormErrors(form, validation.errors);
+          showToast('Please fix the errors in the form', 'error');
+          return;
+        }
+        
+        // Clear any previous errors
+        clearFormErrors(form);
+        
+        // Get form data
+        const clientData = getFormData(form);
+        const editId = editClientIdField.value;
+        
+        if (editId) {
+          // Update existing client
+          const updated = updateClient(editId, clientData);
+          if (updated) {
+            showToast('Client updated successfully!', 'success');
+            // Redirect to client list after short delay
+            setTimeout(() => {
+              window.location.href = 'clients.html';
+            }, 1000);
+          } else {
+            showToast('Failed to update client', 'error');
+          }
+        } else {
+          // Add new client
+          const newClient = addClient(clientData);
+          showToast('Client added successfully!', 'success');
+          
+          // Reset form
+          form.reset();
+          
+          // Redirect to client list after short delay
+          setTimeout(() => {
+            window.location.href = 'clients.html';
+          }, 1000);
+        }
+      });
+      
+      /**
+       * Handle cancel button (edit mode only)
+       */
+      cancelBtn.addEventListener('click', function() {
+        window.location.href = 'clients.html';
+      });
+      
+      /**
+       * Handle form reset
+       */
+      form.addEventListener('reset', function() {
+        clearFormErrors(form);
+        
+        // If in edit mode, go back to add mode
+        if (editClientIdField.value) {
+          editClientIdField.value = '';
+          document.getElementById('new-client-title').textContent = 'New Client Form';
+          formModeText.textContent = 'Fill in the details below to add a new client.';
+          submitBtn.textContent = 'Add Client';
+          cancelBtn.style.display = 'none';
+          
+          // Clear URL parameter
+          window.history.replaceState({}, '', 'index.html');
+        }
+      });
+      
+      /**
+       * Real-time validation on input
+       */
+      form.querySelectorAll('input, select').forEach(field => {
+        field.addEventListener('blur', function() {
+          // Validate single field on blur
+          const fieldName = this.name;
+          const validation = validateClientForm(form);
+          
+          // Clear existing error for this field
+          const existingError = this.parentNode.querySelector('.error-message');
+          if (existingError) existingError.remove();
+          this.classList.remove('input-error');
+          
+          // Show error if field is invalid
+          if (validation.errors[fieldName]) {
+            this.classList.add('input-error');
+            const errorEl = document.createElement('span');
+            errorEl.className = 'error-message';
+            errorEl.textContent = validation.errors[fieldName];
+            this.parentNode.appendChild(errorEl);
+          }
+        });
+        
+        // Clear error on input
+        field.addEventListener('input', function() {
+          const existingError = this.parentNode.querySelector('.error-message');
+          if (existingError) existingError.remove();
+          this.classList.remove('input-error');
+        });
+      });
+      
+    })();
+  </script>
+</body>
+</html>

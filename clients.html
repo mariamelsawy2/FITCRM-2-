@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FitCRM — Client List</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <h1 class="brand">FitCRM</h1>
+      <nav aria-label="Primary">
+        <ul class="nav">
+          <li><a class="nav-link" href="index.html">New Client</a></li>
+          <li><a class="nav-link active" href="clients.html">Client List</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card" aria-labelledby="client-list-title">
+      <header class="section-header">
+        <h2 id="client-list-title">Client List</h2>
+        <p class="section-subtitle">
+          <span id="client-count">0</span> clients registered
+        </p>
+      </header>
+
+      <div class="toolbar">
+        <div class="search-wrapper">
+        <label for="search" class="sr-only">Search by name</label>
+          <input id="search" type="search" placeholder="Search clients by name..." aria-describedby="search-hint" />
+          <span id="search-hint" class="sr-only">Type to filter clients by name</span>
+        </div>
+        <a href="index.html" class="btn btn-primary">+ Add Client</a>
+      </div>
+
+      <!-- Empty State -->
+      <div id="empty-state" class="empty-state" style="display: none;">
+        <div class="empty-state-icon">📋</div>
+        <h3>No Clients Yet</h3>
+        <p>Get started by adding your first client.</p>
+        <a href="index.html" class="btn btn-primary">Add Your First Client</a>
+      </div>
+
+      <!-- No Results State -->
+      <div id="no-results" class="empty-state" style="display: none;">
+        <div class="empty-state-icon">🔍</div>
+        <h3>No Results Found</h3>
+        <p>No clients match your search. Try a different name.</p>
+        <button class="btn btn-secondary" id="clear-search">Clear Search</button>
+      </div>
+
+      <!-- Client Table -->
+      <div class="table-wrap" id="table-container" role="region" aria-label="Clients Table" tabindex="0">
+        <table class="table clients-table">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Email</th>
+              <th scope="col">Phone</th>
+              <th scope="col">Fitness Goal</th>
+              <th scope="col">Start Date</th>
+              <th scope="col" class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="clients-tbody">
+            <!-- Client rows will be dynamically inserted here -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p><a href="index.html" class="text-link">Add New Client</a></p>
+    </div>
+  </footer>
+
+  <!-- Include JavaScript -->
+  <script src="js/app.js"></script>
+  <script>
+    /**
+     * Client List Page Handler
+     * Manages client display, search, edit, and delete functionality
+     */
+    (function() {
+      'use strict';
+      
+      const tbody = document.getElementById('clients-tbody');
+      const searchInput = document.getElementById('search');
+      const clientCount = document.getElementById('client-count');
+      const emptyState = document.getElementById('empty-state');
+      const noResults = document.getElementById('no-results');
+      const tableContainer = document.getElementById('table-container');
+      const clearSearchBtn = document.getElementById('clear-search');
+      
+      // Initialize: ensure sample data exists and render clients
+      initializeSampleData();
+      renderClients();
+      
+      /**
+       * Render clients to the table
+       * @param {Array} clients - Optional filtered clients array
+       */
+      function renderClients(clients = null) {
+        const allClients = clients || getClients();
+        const isSearching = searchInput.value.trim().length > 0;
+        
+        // Update client count
+        clientCount.textContent = allClients.length;
+        
+        // Handle empty states
+        if (allClients.length === 0) {
+          tbody.innerHTML = '';
+          tableContainer.style.display = 'none';
+          
+          if (isSearching) {
+            emptyState.style.display = 'none';
+            noResults.style.display = 'flex';
+          } else {
+            emptyState.style.display = 'flex';
+            noResults.style.display = 'none';
+          }
+          return;
+        }
+        
+        // Show table, hide empty states
+        tableContainer.style.display = 'block';
+        emptyState.style.display = 'none';
+        noResults.style.display = 'none';
+        
+        // Build table rows
+        tbody.innerHTML = allClients.map(client => `
+          <tr data-client-id="${client.id}">
+            <td data-label="Name">
+              <a href="client-view.html?id=${client.id}" class="client-name-link">${escapeHtml(client.fullName)}</a>
+            </td>
+            <td data-label="Email">
+              <a href="mailto:${escapeHtml(client.email)}">${escapeHtml(client.email)}</a>
+            </td>
+            <td data-label="Phone">
+              <a href="tel:${escapeHtml(client.phone.replace(/\s/g, ''))}">${escapeHtml(client.phone)}</a>
+            </td>
+            <td data-label="Fitness Goal">
+              <span class="badge badge-${getBadgeClass(client.goal)}">${escapeHtml(client.goal)}</span>
+            </td>
+            <td data-label="Start Date">${escapeHtml(client.startDate)}</td>
+            <td class="row-actions">
+              <button class="btn btn-ghost btn-sm" data-action="view" data-id="${client.id}" title="View client details">
+                View
+              </button>
+              <button class="btn btn-ghost btn-sm" data-action="edit" data-id="${client.id}" title="Edit client">
+                Edit
+              </button>
+              <button class="btn btn-danger-ghost btn-sm" data-action="delete" data-id="${client.id}" title="Delete client">
+                Delete
+              </button>
+            </td>
+          </tr>
+        `).join('');
+      }
+      
+      /**
+       * Get badge class based on fitness goal
+       * @param {string} goal - Fitness goal
+       * @returns {string} Badge class suffix
+       */
+      function getBadgeClass(goal) {
+        const classes = {
+          'Weight Loss': 'loss',
+          'Muscle Gain': 'gain',
+          'General Fitness': 'fitness',
+          'Other': 'other'
+        };
+        return classes[goal] || 'default';
+      }
+      
+      /**
+       * Escape HTML to prevent XSS
+       * @param {string} str - String to escape
+       * @returns {string} Escaped string
+       */
+      function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+      
+      /**
+       * Handle search input
+       */
+      searchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        const filtered = searchClients(query);
+        renderClients(filtered);
+      });
+      
+      /**
+       * Clear search button handler
+       */
+      clearSearchBtn.addEventListener('click', function() {
+        searchInput.value = '';
+        renderClients();
+        searchInput.focus();
+      });
+      
+      /**
+       * Handle table action buttons (Edit, Delete, View)
+       */
+      tbody.addEventListener('click', function(e) {
+        const button = e.target.closest('[data-action]');
+        if (!button) return;
+        
+        const action = button.dataset.action;
+        const clientId = button.dataset.id;
+        
+        switch (action) {
+          case 'view':
+            viewClient(clientId);
+            break;
+          case 'edit':
+            editClient(clientId);
+            break;
+          case 'delete':
+            confirmDeleteClient(clientId);
+            break;
+        }
+      });
+      
+      /**
+       * Handle clicking on client name (view)
+       */
+      tbody.addEventListener('click', function(e) {
+        if (e.target.classList.contains('client-name-link')) {
+          // Link will handle navigation
+          return;
+        }
+      });
+      
+      /**
+       * Navigate to client view page
+       * @param {string} clientId - Client ID
+       */
+      function viewClient(clientId) {
+        window.location.href = `client-view.html?id=${clientId}`;
+      }
+      
+      /**
+       * Navigate to edit page with client ID
+       * @param {string} clientId - Client ID
+       */
+      function editClient(clientId) {
+        window.location.href = `index.html?edit=${clientId}`;
+      }
+      
+      /**
+       * Show delete confirmation and handle deletion
+       * @param {string} clientId - Client ID
+       */
+      function confirmDeleteClient(clientId) {
+        const client = getClientById(clientId);
+        if (!client) {
+          showToast('Client not found', 'error');
+          return;
+        }
+        
+        showConfirmDialog(
+          `Are you sure you want to delete "${client.fullName}"? This action cannot be undone.`,
+          () => {
+            // On confirm
+            const deleted = deleteClient(clientId);
+            if (deleted) {
+              showToast('Client deleted successfully', 'success');
+              renderClients();
+            } else {
+              showToast('Failed to delete client', 'error');
+            }
+          },
+          () => {
+            // On cancel - do nothing
+          }
+        );
+      }
+      
+      /**
+       * Keyboard navigation for search
+       */
+      searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          this.value = '';
+          renderClients();
+        }
+      });
+      
+    })();
+  </script>
+</body>
+</html>
